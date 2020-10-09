@@ -1,17 +1,24 @@
 import * as React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, Button } from 'react-native';
 import RnBraintree from 'rn-braintree';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
 
-  React.useEffect(() => {
-    RnBraintree.multiply(3, 7).then(setResult);
-  }, []);
+  async function onButtonPress() {
+    try {
+      const res = await RnBraintree.setupBT("check")
+      console.log(res, "response")
+    } catch (error) {
+      console.log(error, "response")
+    }
+  }
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Button
+        onPress={onButtonPress}
+        title={"SetUp"}
+      />
     </View>
   );
 }

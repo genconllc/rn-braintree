@@ -2,8 +2,9 @@ import { NativeModules } from 'react-native';
 
 type RnBraintreeType = {
   multiply(a: number, b: number): Promise<number>;
+  setupBT(token: string): Promise<string>;
 };
 
-const { RnBraintree } = NativeModules;
+const { RnBrainTreeModule } = NativeModules;
 
-export default RnBraintree as RnBraintreeType;
+export default RnBrainTreeModule as RnBraintreeType;
