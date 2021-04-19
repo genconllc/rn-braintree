@@ -38,7 +38,6 @@ class RnBraintree: NSObject {
         let cvvStr =  cardOptions["cvv"] as! String
         
         let card = BTCard(number:numberStr, expirationMonth: month, expirationYear: year, cvv: cvvStr)
-        card.shouldValidate = true
         cardClient.tokenizeCard(card) { (tokenizedCard, error) in
             if((error) != nil){
                 reject("400",error?.localizedDescription, error)
@@ -46,6 +45,46 @@ class RnBraintree: NSObject {
                 resolve(tokenizedCard?.nonce)
             }
                 
+        }
+    }
+    
+    @objc(getCardNonceFromDropIn:withResolver:withRejecter:)
+    func getCardNonceFromDropIn(cardOptions: NSDictionary, resolve: @escaping RCTPromiseResolveBlock,reject: @escaping RCTPromiseRejectBlock) -> Void {
+        guard let token = clientToken else {
+            reject("400", "Client Token is Invalid. Please check and retry!", nil)
+            return
+        }
+        let request =  BTDropInRequest()
+        let dropIn = BTDropInController(authorization: token, request: request)
+            { (controller, result, error) in
+                if (error != nil) {
+                    print("ERROR")
+                    DispatchQueue.main.async {
+                        controller.dismiss(animated: true, completion: nil)
+                    }
+                    reject("400", "Error  Presenting BTDropInController", nil)
+                    return
+                } else if (result?.isCancelled == true) {
+                    print("CANCELED")
+                    DispatchQueue.main.async {
+                        controller.dismiss(animated: true, completion: nil)
+                    }
+                    reject("400", "Canceled BTDropInController", nil)
+                    return
+                }
+                guard let paymentResult = result else {
+                    DispatchQueue.main.async {
+                        controller.dismiss(animated: true, completion: nil)
+                    }
+                    reject("400", "Unable to get payment result", nil)
+                    return
+                }
+            resolve(paymentResult.paymentMethod?.nonce)
+                controller.dismiss(animated: true, completion: nil)
+            }
+        DispatchQueue.main.async {
+            let presentedViewController = RCTPresentedViewController()
+            presentedViewController?.present(dropIn!, animated: true, completion: nil)
         }
     }
     

@@ -4,8 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat.startActivityForResult
 import com.braintreepayments.api.BraintreeFragment
 import com.braintreepayments.api.Card
+import com.braintreepayments.api.dropin.DropInActivity
 import com.braintreepayments.api.dropin.DropInRequest
 import com.braintreepayments.api.dropin.DropInResult
 import com.braintreepayments.api.exceptions.ErrorWithResponse
@@ -19,6 +21,8 @@ import com.braintreepayments.api.models.ThreeDSecureRequest
 import com.facebook.react.bridge.*
 import com.google.gson.Gson
 import java.util.*
+import androidx.appcompat.app.AppCompatActivity.RESULT_OK
+import androidx.appcompat.app.AppCompatActivity.RESULT_CANCELED
 
 
 class RnBraintreeModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), ActivityEventListener {
@@ -27,7 +31,9 @@ class RnBraintreeModule(reactContext: ReactApplicationContext) : ReactContextBas
     return "RnBraintree"
   }
 
+  private val DROP_IN_REQUEST = 100
   private val REQUEST_CODE = 65000
+
 
   private val USER_CANCELLATION = "USER_CANCELLATION"
   private val AUTHENTICATION_UNSUCCESSFUL = "AUTHENTICATION_UNSUCCESSFUL"
@@ -103,7 +109,6 @@ class RnBraintreeModule(reactContext: ReactApplicationContext) : ReactContextBas
     }
     this.promise = promise
     val cardBuilder = CardBuilder()
-      .validate(true)
     if (parameters.hasKey("number")) cardBuilder.cardNumber(parameters.getString("number"))
     if (parameters.hasKey("cvv")) cardBuilder.cvv(parameters.getString("cvv"))
 
@@ -121,6 +126,20 @@ class RnBraintreeModule(reactContext: ReactApplicationContext) : ReactContextBas
     if (parameters.hasKey("extendedAddress")) cardBuilder.extendedAddress(parameters.getString("extendedAddress"))
     Card.tokenize(mBraintreeFragment, cardBuilder)
   }
+
+  @ReactMethod
+  fun getCardNonceFromDropIn(parameters: ReadableMap, promise: Promise) {
+    if (!this::mBraintreeFragment.isInitialized) {
+      promise.reject(InvalidArgumentException("Client Token is Invalid. Please check and retry!"))
+      return
+    }
+    this.promise = promise
+    val dropInRequest = DropInRequest()
+      .clientToken(token)
+    currentActivity?.startActivityForResult(dropInRequest.getIntent(currentActivity), DROP_IN_REQUEST)
+  }
+
+  //    currentActivity?.startActivityForResult(dropInRequest.getIntent(currentActivity), REQUEST_CODE)
 
 //  @ReactMethod
 //  fun getCardNonceWithThreeDSecure(parameters: ReadableMap, orderTotal: Float, options: ReadableMap, successCallback: Callback?, errorCallback: Callback?) {
@@ -208,7 +227,21 @@ class RnBraintreeModule(reactContext: ReactApplicationContext) : ReactContextBas
 
   override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
     Log.e("error", " " + resultCode)
-    if (requestCode == REQUEST_CODE) {
+    if (requestCode == DROP_IN_REQUEST) {
+      if (resultCode == RESULT_OK) {
+        val result: DropInResult = data!!.getParcelableExtra(DropInResult.EXTRA_DROP_IN_RESULT)
+        val paymentMethodNonce = result.paymentMethodNonce!!.nonce
+        // send paymentMethodNonce to your server
+        nonceCallback(result.paymentMethodNonce!!.nonce);
+      } else if (resultCode == RESULT_CANCELED) {
+        // canceled
+        nonceErrorCallback("NONCE_ERROR")
+      } else {
+        // an error occurred, checked the returned exception
+        val exception = data!!.getSerializableExtra(DropInActivity.EXTRA_ERROR) as Exception
+        nonceErrorCallback("NONCE_ERROR")
+      }
+    } else if (requestCode == REQUEST_CODE) {
       if (data == null) {
         nonceErrorCallback("USER_CANCELLATION")
         return
