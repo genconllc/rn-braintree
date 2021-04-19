@@ -145,6 +145,15 @@ import RnBraintree from "rn-braintree-one";
   .catch((err) => {
     console.log('Error in onCardPress', err)
   });
+  
+ // Show Drop In UI Screen (Android & iOS) And Get Card Nonce From It
+ RnBraintree.getCardNonceFromDropIn({})
+  .then(nonce => {
+    console.log("nonce", nonce)
+   })
+   .catch(error => {
+     console.log('error fetching nonce', error)
+   })
 ```
 
 ## Why was this package created?
